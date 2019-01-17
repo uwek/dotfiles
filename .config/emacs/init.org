@@ -1,0 +1,294 @@
+#+TITLE: Emacs - basic setup
+#+STARTUP: overview hidestars indent
+
+* empty
+#+BEGIN_SRC emacs-lisp :tangle ~/.emacs.d/init.el
+
+#+END_SRC
+
+
+* basic setup
+#+BEGIN_SRC emacs-lisp :tangle ~/.emacs.d/init.el
+(setq usevil nil)
+
+(if (display-graphic-p) (progn
+  (scroll-bar-mode -1)
+  (tool-bar-mode -1)))
+(unless (eq system-type 'darwin)
+  (menu-bar-mode -1))
+(defalias 'yes-or-no-p 'y-or-n-p) ;; keine "yes-or-no"-Fragen - "y-or-n" reicht aus
+(show-paren-mode 1) ;; Zusammengehörende Klammern hervorheben
+(setq show-paren-style 'parenthesis) ;; Text zwischen den Klammern nicht hervorheben
+(setq delete-old-versions -1 )		; delete excess backup versions silently
+(setq version-control t )		; use version control
+(setq vc-make-backup-files t )		; make backups file even when in version controlled dir
+(setq backup-directory-alist `(("." . "~/.emacs.d/backups")) ) ; which directory to put backups file
+(setq vc-follow-symlinks t )				       ; don't ask for confirmation when opening symlinked file
+(setq auto-save-file-name-transforms '((".*" "~/.emacs.d/auto-save-list/" t)) ) ;transform backups file name
+(setq inhibit-startup-screen t )	; inhibit useless and old-school startup screen
+(setq ring-bell-function 'ignore )	; silent bell when you make a mistake
+(setq coding-system-for-read 'utf-8 )	; use utf-8 by default
+(setq coding-system-for-write 'utf-8 )
+(setq sentence-end-double-space nil)	; sentence SHOULD end with only a point.
+(setq default-fill-column 80)		; toggle wrapping text at the 80th character
+(setq initial-scratch-message "Welcome in Emacs") ; print a default message in the empty scratch buffer opened at startup
+(setq inhibit-splash-screen t) ;; Keinen Splash-Screen
+(setq standard-indent 2)
+(setq tab-width 2)
+(setq-default indent-tabs-mode nil)
+
+;(windmove-default-keybindings)
+;(windmove-default-keybindings 'super)
+;(setq windmove-wrap-around t)
+
+;(global-unset-key "\C-z")
+;(global-set-key (kbd "C-z") 'undo)
+
+(setq custom-file "~/.emacs.d/custom-settings.el")
+(load custom-file t)
+
+(setq default-directory "~/")
+
+#+END_SRC
+* mode line
+#+BEGIN_SRC emacs-lisp :tangle ~/.emacs.d/init.el
+(setq display-time-format " - %k:%M")
+(setq display-time-default-load-average nil)
+(display-battery-mode 1)
+(display-time-mode 1)
+
+#+END_SRC
+* specific: macOS keyboard and fonts
+
+- https://stackoverflow.com/questions/3376863/unable-to-type-braces-and-square-braces-in-emacs/3378391#3378391
+
+#+BEGIN_SRC emacs-lisp :tangle ~/.emacs.d/init.el
+(if (eq system-type 'darwin) (progn
+  ;; ==============================
+  (setq mac-command-modifier 'meta
+        mac-option-modifier 'none
+        x-select-enable-clipboard t
+        default-input-method "MacOSX")
+  (setq default-frame-alist '(
+        (top . 0) (left . 0)
+        ;; (tool-bar-lines . 0)
+        (width . 133)
+        (height . 42)))
+
+  (setenv "PATH" (concat "/usr/local/bin:" (getenv "PATH")))
+  (add-to-list 'exec-path "/usr/local/bin")
+
+  (set-face-attribute 'default nil :family "Monaco" :height 155 :weight 'normal)
+
+  ;; ==============================
+))
+#+END_SRC
+
+* specific: Windows load-path and $PATH
+#+BEGIN_SRC emacs-lisp :tangle ~/.emacs.d/init.el
+(if (eq system-type 'windows-nt) (progn
+  (defun my-add2path (p)
+    (progn
+      (setq my-emacspath (concat invocation-directory "../../"))
+      (setenv "PATH" (concat my-emacspath p ";" (getenv "PATH")))
+      (add-to-list 'exec-path (concat my-emacspath p))))
+
+  (my-add2path "emacs/bin")
+  (my-add2path "node")
+  (my-add2path "newlisp")
+  (my-add2path "localbin")
+  (my-add2path "localbin/hunspell/bin")
+
+  (setq default-frame-alist '(
+        (top . 0) (left . 0)
+        (width . 104)
+        (height . 29)))
+  (set-face-attribute 'default nil :family "Consolas" :height 125 :weight 'normal)
+
+  (require 'json)
+  (setq DBPSTR (concat
+    (cdr (assoc 'path (car
+      (json-read-file (substitute-in-file-name
+         "$LOCALAPPDATA/Dropbox/info.json"))))) "/")))
+  (setq DBPSTR (expand-file-name "~/Documents/"))) ;; else: !Windows
+
+(defun dbp (p) (concat DBPSTR p))
+
+;(if (boundp 'browserpath)
+;  (setq browse-url-browser-function 'browse-url-generic
+;        browse-url-generic-program browserpath))
+
+; (load "~/.emacs.d/.secrets.el")
+#+END_SRC
+* smooth scroll
+#+BEGIN_SRC emacs-lisp :tangle ~/.emacs.d/init.el
+(setq scroll-margin 5
+      scroll-conservatively 9999
+      scroll-step 1)
+#+END_SRC
+* UTF-8
+#+BEGIN_SRC emacs-lisp :tangle ~/.emacs.d/init.el
+(prefer-coding-system 'utf-8-unix)
+(set-default-coding-systems 'utf-8-unix)
+(set-terminal-coding-system 'utf-8-unix)
+(set-keyboard-coding-system 'utf-8-unix)
+
+;; Treat clipboard input as UTF-8 string first; compound text next, etc.
+(when (display-graphic-p)
+  (setq x-select-request-type '(UTF8_STRING COMPOUND_TEXT TEXT STRING)))
+#+END_SRC
+
+* use-package & diminish
+
+  - https://github.com/jwiegley/use-package
+
+#+BEGIN_SRC emacs-lisp :tangle ~/.emacs.d/init.el
+(require 'package)
+(setq package-enable-at-startup nil)
+(setq package-archives '(("melpa"     . "http://melpa.org/packages/")
+                         ("org"       . "http://orgmode.org/elpa/")
+                         ; ("marmalade" . "http://marmalade-repo.org/packages/")
+                         ("gnu"       . "http://elpa.gnu.org/packages/")
+                         ;; Spiegelserver, wenn melpa down
+                         ; ("gnu"       . "https://elpa.zilongshanren.com/")
+                         ; ("gnu"       . "https://mirrors.tuna.tsinghua.edu.cn/elpa/")
+                         ; ("melpa"     . "https://elpa.zilongshanren.com/melpa/")
+                         ; ("melpa"     . "https://mirrors.tuna.tsinghua.edu.cn/elpa/melpa/")
+                         ))
+(package-initialize)
+
+(unless (package-installed-p 'use-package)
+  (package-refresh-contents)
+  (package-install 'use-package))
+
+#+END_SRC
+
+#+BEGIN_SRC emacs-lisp :tangle ~/.emacs.d/init.el
+(use-package diminish
+   :ensure t
+   ; :if nil
+   :config
+    (diminish 'visual-line-mode)
+    (diminish 'undo-tree-mode)
+    (diminish 'which-key-mode)
+)
+#+END_SRC
+
+* color theme
+#+BEGIN_SRC emacs-lisp :tangle ~/.emacs.d/init.el
+
+(use-package zenburn-theme :ensure t
+  ; :if nil
+  :config
+    (load-theme 'zenburn t))
+
+(use-package solarized-theme
+  :ensure t
+  :if nil
+  :config
+    (load-theme 'solarized-light t)
+    (if t (use-package theme-changer
+      :ensure t
+      :config
+        (setq calendar-location-name "Hannover, Germany")
+        (setq calendar-latitude 52.37)
+        (setq calendar-longitude 9.73)
+        (change-theme 'solarized-light 'solarized-dark))))
+
+#+END_SRC
+
+* package: which-key
+#+BEGIN_SRC emacs-lisp :tangle ~/.emacs.d/init.el
+(use-package which-key :ensure t
+  :diminish 'which-key-mode
+  :config
+    (which-key-mode 1))
+#+END_SRC
+
+* package: general
+#+BEGIN_SRC emacs-lisp :tangle ~/.emacs.d/init.el
+
+(use-package general
+  :ensure t
+  :config
+  (if usevil
+    (progn
+      (general-evil-setup t)
+      (general-create-definer uka/leader-def
+         :states '(normal visual insert emacs)
+         :prefix "SPC"
+         :non-normal-prefix "C-SPC"))
+     (general-create-definer uka/leader-def
+       :prefix "C-C")))
+
+#+END_SRC
+
+* package: ivy, swiper, counsel
+
+#+BEGIN_SRC emacs-lisp :tangle ~/.emacs.d/init.el
+(use-package ivy :ensure t
+  :diminish
+    (ivy-mode . "")
+  :init
+    (ivy-mode 1)
+  :config
+    (setq ivy-height 20)                   ; set height of the ivy window
+    (setq ivy-count-format "(%d/%d) ")     ; count format, from the ivy help page
+    (setq ivy-format-function 'ivy-format-function-line) ; Make highlight extend all the way to the right
+    (setq ivy-display-style 'fancy))
+
+(use-package counsel :ensure t
+  :general
+ ;  (general-define-key
+ ;   :keymaps 'normal
+ ;   :prefix "SPC"
+ ;   "SPC" '(counsel-M-x :which-key "M-x"))
+    (general-define-key
+     "C-s" 'counsel-grep-or-swiper)
+  :config
+    (ivy-mode t))
+#+END_SRC
+
+* package: auto-complete
+
+#+BEGIN_SRC emacs-lisp :tangle ~/.emacs.d/init.el
+(use-package auto-complete
+  ; :if nil
+  :ensure t
+  :config
+    (ac-config-default)
+    (global-auto-complete-mode))
+#+END_SRC
+
+* package: eyebrowse
+
+#+BEGIN_SRC emacs-lisp :tangle ~/.emacs.d/init.el
+(use-package eyebrowse :ensure t
+  :diminish eyebrowse-mode
+  :config (progn
+            (define-key eyebrowse-mode-map (kbd "M-1") 'eyebrowse-switch-to-window-config-1)
+            (define-key eyebrowse-mode-map (kbd "M-2") 'eyebrowse-switch-to-window-config-2)
+            (define-key eyebrowse-mode-map (kbd "M-3") 'eyebrowse-switch-to-window-config-3)
+            (define-key eyebrowse-mode-map (kbd "M-4") 'eyebrowse-switch-to-window-config-4)
+            (eyebrowse-mode t)
+            (setq eyebrowse-new-workspace t)))
+#+END_SRC
+
+* optional
+#+BEGIN_SRC emacs-lisp :tangle ~/.emacs.d/init.el
+
+(defun loadopt (soname)
+  (if (file-exists-p (expand-file-name soname))
+    (load (expand-file-name soname))))
+
+;(loadopt "~/secrets.lsp")
+;(loadopt "~/wanderlust.lsp")
+;(loadopt "~/Documents/blog/sweetblog.el")
+
+#+END_SRC
+
+* finish startup
+
+#+BEGIN_SRC emacs-lisp :tangle ~/.emacs.d/init.el
+(setq initial-scratch-message (concat "Welcome in Emacs after " (emacs-init-time)))
+#+END_SRC
